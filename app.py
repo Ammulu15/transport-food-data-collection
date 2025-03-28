@@ -1,73 +1,75 @@
 import streamlit as st
 import sqlite3
-from db import create_table, insert_data  # Importing functions from db.py
+from db import create_table, insert_data
 
-# Ensure the table exists
+# Ensure the database table exists
 create_table()
 
-# Set up the page layout and title
-st.set_page_config(page_title="Transportation Emissions Calculator", layout="wide")
-st.title("Transportation Emissions Calculator")
+# --- Navigation Bar ---
+menu = ["Home", "Register for Event", "Transportation Data", "Food Details", "Contact Us"]
+selected = st.radio("", menu, horizontal=True)
 
-# Step 1: Choose transport mode (example: dropdown)
-transport_mode = st.selectbox("Select transport mode", ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", "Electric 2-Wheeler", "Electric 4-Wheeler"])
-
-# Step 2: Get the distance for the transport mode (popup when clicking on distance)
-distance = st.number_input("Enter the distance traveled (in km)", min_value=0.1, step=0.1)
-
-# Step 3: Calculate emissions for the selected transport mode
-def calculate_emissions(transport_mode, distance):
-    # Define emission factors for different transport modes
-    EMISSION_FACTORS = {
-        "3-Wheeler CNG": 0.10768,
-        "2-Wheeler": 0.04911,
-        "4W Petrol": 0.187421,
-        "4W CNG": 0.068,
-        "BUS": 0.015161,
-        "Electric 2-Wheeler": 0.0319,
-        "Electric 4-Wheeler": 0.1277
-    }
+# --- Event Registration ---
+if selected == "Register for Event":
+    st.title("Event Registration")
+    name = st.text_input("Full Name")
+    origin = st.text_input("Where are you traveling from?")
+    email = st.text_input("Email Address")
+    phone = st.text_input("Phone Number")
     
-    # Get the emission factor for the selected transport mode
-    emission_factor = EMISSION_FACTORS.get(transport_mode)
-    
-    if emission_factor:
-        emissions = emission_factor * distance
-        return emissions
+    if st.button("Register"):
+        if name and origin and email and phone:
+            st.session_state.registered = True
+            st.session_state.name = name
+            st.session_state.origin = origin
+            st.success("Registration successful! You can now enter transportation data.")
+        else:
+            st.error("Please fill in all fields.")
+
+# --- Home Page ---
+elif selected == "Home":
+    st.title("Welcome to the Emissions Calculator")
+    st.write("This tool helps you calculate transportation and food-related emissions.")
+
+# --- Transportation Data Page ---
+elif selected == "Transportation Data":
+    if not st.session_state.get("registered", False):
+        st.warning("Please register for the event first.")
     else:
-        return None
+        st.title("Transportation Emissions Calculator")
+        transport_mode = st.selectbox("Select transport mode", [
+            "3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", "Electric 2-Wheeler", "Electric 4-Wheeler"
+        ])
+        distance = st.number_input("Enter the distance traveled (in km)", min_value=0.1, step=0.1)
 
-# Step 4: Display the emissions calculation
-if st.button("Calculate Emissions"):
-    emissions = calculate_emissions(transport_mode, distance)
-    
-    if emissions:
-        st.write(f"Emissions for {transport_mode} for {distance} km: {emissions:.4f} kg CO2")
-        
-        # Step 5: Save the data to the database
-        name = "Event Attendee"  # You can replace this with user input if needed
-        input_type = "Distance"
-        value = distance
-        frequency = 1  # For now, set to 1 (you can modify this if needed)
-        travel_date = st.date_input("Select travel date").strftime("%Y-%m-%d")
-        
-        # Insert data into the database
-        insert_data(name, transport_mode, input_type, value, frequency, travel_date, emissions)
-        st.success("Data saved to the database successfully!")
-    else:
-        st.error("Invalid transport mode selected.")
+        def calculate_emissions(transport_mode, distance):
+            EMISSION_FACTORS = {
+                "3-Wheeler CNG": 0.10768,
+                "2-Wheeler": 0.04911,
+                "4W Petrol": 0.187421,
+                "4W CNG": 0.068,
+                "BUS": 0.015161,
+                "Electric 2-Wheeler": 0.0319,
+                "Electric 4-Wheeler": 0.1277
+            }
+            return EMISSION_FACTORS.get(transport_mode, 0) * distance
 
-# Optional: Display the data from the database (for debugging or testing purposes)
-if st.checkbox("Show saved data"):
-    conn = sqlite3.connect("data/emissions.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM transport_emissions")
-    rows = cursor.fetchall()
-    
-    if rows:
-        st.write("Saved Data:")
-        for row in rows:
-            st.write(row)
-    else:
-        st.write("No data found in the database.")
-    conn.close()
+        if st.button("Calculate Emissions"):
+            emissions = calculate_emissions(transport_mode, distance)
+            if emissions:
+                st.write(f"Emissions for {transport_mode} for {distance} km: {emissions:.4f} kg CO2")
+                travel_date = st.date_input("Select travel date").strftime("%Y-%m-%d")
+                insert_data(st.session_state.name, transport_mode, "Distance", distance, 1, travel_date, emissions)
+                st.success("Data saved successfully!")
+            else:
+                st.error("Invalid transport mode selected.")
+
+# --- Food Details Page ---
+elif selected == "Food Details":
+    st.title("Food Emissions Data")
+    st.write("This section will track emissions related to food consumption.")
+
+# --- Contact Us Page ---
+elif selected == "Contact Us":
+    st.title("Contact Us")
+    st.write("For any queries, please reach out to us via email at: support@example.com")
