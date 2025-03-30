@@ -6,28 +6,37 @@ def init_db():
     c = conn.cursor()
     
     # Users table
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                email TEXT UNIQUE,
-                password TEXT)''')
-
-    # Transport data table
-    c.execute('''CREATE TABLE IF NOT EXISTS transport_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                transport_mode TEXT,
-                distance REAL,
-                emissions REAL,
-                FOREIGN KEY(user_id) REFERENCES users(id))''')
-
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT UNIQUE,
+            password TEXT
+        )
+    ''')
+    
+    # Transport data table (emissions column allows NULL values)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS transport_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            transport_mode TEXT,
+            distance REAL,
+            emissions REAL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
+    
     # Food choices table
-    c.execute('''CREATE TABLE IF NOT EXISTS food_choices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                choice TEXT,
-                FOREIGN KEY(user_id) REFERENCES users(id))''')
-
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS food_choices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            choice TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -68,11 +77,12 @@ def update_password(email, new_password):
     c = conn.cursor()
     c.execute("UPDATE users SET password = ? WHERE email = ?", (new_password, email))
     conn.commit()
+    updated = c.rowcount > 0  # True if update was successful
     conn.close()
-    return c.rowcount > 0  # Return True if update was successful
+    return updated
 
-# Store Transport Data
-def store_transport_data(user_id, transport_mode, distance, emissions):
+# Store Transport Data (emissions is optional and allowed to be NULL)
+def store_transport_data(user_id, transport_mode, distance, emissions=None):
     conn = sqlite3.connect("data/emissions.db")
     c = conn.cursor()
     c.execute("INSERT INTO transport_data (user_id, transport_mode, distance, emissions) VALUES (?, ?, ?, ?)",
@@ -87,19 +97,3 @@ def store_food_choice(user_id, choice):
     c.execute("INSERT INTO food_choices (user_id, choice) VALUES (?, ?)", (user_id, choice))
     conn.commit()
     conn.close()
-
-# ✅ Fix: Add `calculate_emissions`
-def calculate_emissions(transport_mode, distance):
-    """Estimate emissions based on transport mode and distance"""
-    emissions_factors = {
-        "Car": 0.12,       # kg CO2 per km
-        "Bike": 0.03,
-        "Bus": 0.08,
-        "Walking": 0.0,
-        "Airplane": 0.25,
-        "Train": 0.06
-    }
-    
-    factor = emissions_factors.get(transport_mode, 0)
-    emissions = distance * factor
-    return round(emissions, 2)  # Return emissions rounded to 2 decimal places
