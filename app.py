@@ -111,7 +111,7 @@ with st.container():
         
         # Allow users to select multiple transport modes
         selected_modes = st.multiselect("Select Transport Modes", 
-                                        ["Car", "Bike", "Bus", "Walking", "Airplane", "Train"])
+                                        ["3-Wheeler CNG","2-Wheeler","4W Petrol","4W CNG","BUS","Electric 2-Wheeler","Electric 4-Wheeler","Local Train (Electricity)","Air ways"])
         # Dictionary to hold distance for each mode
         distances = {}
         for mode in selected_modes:
