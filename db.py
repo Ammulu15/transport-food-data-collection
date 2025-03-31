@@ -1,18 +1,20 @@
 import sqlite3
 import os
 
-# Set the database path: use /tmp if running on Streamlit Cloud, else use local data folder.
+# Determine the correct database path:
 if os.environ.get("STREAMLIT_CLOUD"):
+    # If running on Streamlit Cloud, use /tmp which is writeable.
     DB_PATH = "/tmp/emissions.db"
 else:
+    # Local deployment: use the "data" folder.
     DB_PATH = "data/emissions.db"
-    os.makedirs("data", exist_ok=True)  # Ensure local folder exists
+    os.makedirs("data", exist_ok=True)
 
 def init_db():
     """Initialize the database and create necessary tables if they don't exist."""
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-
+        
         # Create the transport_data table
         c.execute('''CREATE TABLE IF NOT EXISTS transport_data (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,7 +29,7 @@ def init_db():
                         dietary_pattern TEXT NOT NULL,
                         food_item TEXT NOT NULL)''')
 
-        # Create contact_messages table
+        # Create the contact_messages table
         c.execute('''CREATE TABLE IF NOT EXISTS contact_messages (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT NOT NULL,
@@ -35,7 +37,7 @@ def init_db():
                         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
 
         conn.commit()
-        print("[DEBUG] Database initialized successfully at:", DB_PATH)
+        print("[DEBUG] Database initialized at:", DB_PATH)
 
 def store_transport_data(session_id, transport_mode, distance):
     """Store transport data for the user session."""
@@ -43,14 +45,14 @@ def store_transport_data(session_id, transport_mode, distance):
         c = conn.cursor()
         c.execute('''INSERT INTO transport_data (session_id, transport_mode, distance) 
                      VALUES (?, ?, ?)''', (session_id, transport_mode, distance))
-        conn.commit()  
+        conn.commit()
         print(f"[DEBUG] Inserted transport data: {session_id}, {transport_mode}, {distance}")
 
 def store_food_data(session_id, dietary_pattern, food_choices):
     """Store food choices for the user session."""
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        for food_item in food_choices:  
+        for food_item in food_choices:
             c.execute('''INSERT INTO food_choices (session_id, dietary_pattern, food_item) 
                          VALUES (?, ?, ?)''', (session_id, dietary_pattern, food_item))
         conn.commit()
