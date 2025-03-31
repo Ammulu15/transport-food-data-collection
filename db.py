@@ -1,22 +1,26 @@
-import sqlite3
 import os
-
-# Ensure the database directory exists
-os.makedirs("data", exist_ok=True)
+import sqlite3
 
 def init_db():
     """Initialize the database and create necessary tables if they don't exist."""
-    with sqlite3.connect("data/emissions.db") as conn:
+    db_path = "data/emissions.db"
+    
+    # Ensure the directory exists
+    os.makedirs("data", exist_ok=True)
+    
+    print("📢 Checking if database exists:", os.path.exists(db_path))  # Debugging
+    
+    with sqlite3.connect(db_path) as conn:
         c = conn.cursor()
-
-        # Create the transport_data table
+        
+        # Create transport_data table
         c.execute('''CREATE TABLE IF NOT EXISTS transport_data (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         session_id TEXT NOT NULL,
                         transport_mode TEXT NOT NULL,
                         distance REAL NOT NULL)''')
 
-        # Create the food_choices table
+        # Create food_choices table
         c.execute('''CREATE TABLE IF NOT EXISTS food_choices (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         session_id TEXT NOT NULL,
@@ -30,7 +34,9 @@ def init_db():
                         message TEXT NOT NULL,
                         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
 
-        conn.commit()  # Commit all changes
+        conn.commit()
+    
+    print("✅ Database initialized successfully!")  # Debugging
 
 def store_transport_data(session_id, transport_mode, distance):
     """Store transport data for the user session."""
