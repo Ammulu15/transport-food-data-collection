@@ -3,16 +3,10 @@ import sqlite3
 import time
 import qrcode
 from io import BytesIO
-from db import init_db, register_user, authenticate_user, store_transport_data, get_logged_in_user_id, update_password
+from db import init_db, store_transport_data, store_food_data
 
 # Initialize the database
 init_db()
-
-# Set up session state for login management
-if 'user_id' not in st.session_state:
-    st.session_state.user_id = None
-if 'reset_password' not in st.session_state:
-    st.session_state.reset_password = False
 
 # Define the URL for your app (replace with your actual app URL)
 app_url = "https://transport-food-data-collection-pzksckdswfrpqjusoctcx5.streamlit.app/"
@@ -23,22 +17,21 @@ buf = BytesIO()
 qr.save(buf, format="PNG")
 buf.seek(0)
 
-# Sidebar Navigation (single definition)
+# Create a session ID for each user (used to store data separately)
+if "session_id" not in st.session_state:
+    # Using time.time() to generate a session id; consider uuid.uuid4() if you prefer randomness.
+    st.session_state.session_id = str(time.time())
+    print(f"[DEBUG] New session ID generated: {st.session_state.session_id}")
+else:
+    print(f"[DEBUG] Using existing session ID: {st.session_state.session_id}")
+
+# Sidebar Navigation
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/149/149071.png", width=60)
     st.title("🚀 Menu")
-    option = st.radio("Go to", 
-                      ["Home", "Register/Login", "Scan QR", "Transport", "Food", "View Data", "Contact Us"])
-    
-    # Logout button (if logged in)
-    if st.session_state.user_id:
-        if st.button("Logout"):
-            st.session_state.user_id = None
-            st.success("✅ Logged out successfully!")
-            time.sleep(1)
-            st.experimental_rerun()
+    option = st.radio("Go to", ["Home", "Scan QR", "Transport", "Food", "View Data", "Contact Us"])
 
-# Main Container for Mobile-Friendly Display
+# Main Container for Display
 with st.container():
     st.markdown("<div style='max-width: 360px; margin: auto;'>", unsafe_allow_html=True)
     
@@ -47,153 +40,106 @@ with st.container():
         st.header("🌍 Welcome to the Event Emissions Data Collector!")
         st.write(
             "We developed a dashboard using Streamlit that displays **Scope 1, 2, and 3 emissions** for an event. "
-            "This web application allows event attendees to register and submit transportation and food data."
+            "This web application allows event attendees to submit transportation and food data."
         )
         st.subheader("📌 What You Can Do Here:")
-        st.markdown("""
-        - ✅ **Register & Login** to access the platform.
-        - ✅ **Enter Transportation Details** – Specify your mode of travel (Car, Train, Airplane, etc.) and distance traveled.
+        st.markdown(""" 
+        - ✅ **Enter Transportation Details** – Specify your mode of travel and distance traveled.
         - ✅ **Choose Your Food Preference** – Select from Veg, Non-Veg, or Vegan options.
-        
-        This data helps event managers estimate total emissions from attendee travel and food consumption.
         """)
-        st.write("Use the sidebar to navigate: **Home, Register/Login, Scan QR, Transport, Food, and Contact Us.**")
-    
-    # Register/Login Page
-    elif option == "Register/Login":
-        st.header("🔑 Register / Login")
-        tab1, tab2 = st.tabs(["Register", "Login"])
-        
-        with tab1:
-            name = st.text_input("Name")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            if st.button("Register"):
-                if name and email and password:
-                    success = register_user(name, email, password)
-                    if success:
-                        st.success("✅ Registration successful! Please login.")
-                    else:
-                        st.error("⚠️ Email already exists.")
-                else:
-                    st.error("⚠️ Please fill all fields.")
-        
-        with tab2:
-            email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_password")
-            if st.button("Login"):
-                user_id = authenticate_user(email, password)
-                if user_id:
-                    st.session_state.user_id = user_id
-                    st.success("✅ Login successful!")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("⚠️ Invalid credentials.")
-            
-            if st.button("Forgot Password?"):
-                st.session_state.reset_password = True
-                st.experimental_rerun()
-        
-        if st.session_state.reset_password:
-            st.header("🔄 Reset Password")
-            email = st.text_input("Enter your registered email")
-            new_password = st.text_input("New Password", type="password")
-            if st.button("Reset Password"):
-                success = update_password(email, new_password)
-                if success:
-                    st.success("✅ Password reset successfully! Please login.")
-                    st.session_state.reset_password = False
-                    st.experimental_rerun()
-                else:
-                    st.error("⚠️ Email not found.")
-    
-    # Scan QR Page: Display the QR code so users can scan it with their mobile device
+        st.write("Use the sidebar to navigate.")
+
+    # QR Code Page
     elif option == "Scan QR":
         st.header("📱 Scan this QR Code")
-        st.write("Scan this QR code with your mobile device to open the app and enter your transport and food preferences.")
+        st.write("Scan this QR code to open the app on your mobile device.")
         st.image(buf, caption="Scan me!", use_column_width=True)
-    
-    # Transport Data Collection Page
+
+    # Transport Data Collection
     elif option == "Transport":
-        if not st.session_state.user_id:
-            st.warning("⚠️ Please Register/Login first.")
-        else:
-            st.header("🚗 Transport Details")
-            st.write("Select all the modes of transportation you used and provide the distance traveled for each.")
-            selected_modes = st.multiselect("Select Transport Modes", 
-                                            ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", 
-                                             "Electric 2-Wheeler", "Electric 4-Wheeler", "Local Train (Electricity)", "Air ways"])
-            distances = {}
-            for mode in selected_modes:
-                distances[mode] = st.number_input(f"Distance traveled by {mode} (km)", 
-                                                  min_value=1, max_value=5000, step=1, key=mode)
-            if st.button("Submit Transport Data"):
-                for mode, distance in distances.items():
-                    store_transport_data(st.session_state.user_id, mode, distance, None)
-                st.success("✅ Transport details submitted!")
-    
-    # Food Preferences Data Collection Page
+        st.header("🚗 Transport Details")
+        st.write("Select the transport modes you used and provide the distance traveled.")
+        selected_modes = st.multiselect("Select Transport Modes", 
+                                        ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", 
+                                         "Electric 2-Wheeler", "Electric 4-Wheeler", "Local Train (Electricity)", "Air ways"])
+        distances = {mode: st.number_input(f"Distance traveled by {mode} (km)", 
+                                           min_value=1, max_value=5000, step=1, key=mode) for mode in selected_modes}
+        if st.button("Submit Transport Data"):
+            for mode, distance in distances.items():
+                store_transport_data(st.session_state.session_id, mode, distance)
+            st.success("✅ Transport details submitted!")
+           
+
+    # Food Preferences Data Collection
     elif option == "Food":
-     if not st.session_state.user_id:
-        st.warning("⚠️ Please Register/Login first.")
-     else:
         st.header("🍽 Select Your Food Preferences")
+    
+        # Dietary Pattern Selection
+        dietary_pattern = st.radio(
+            "Select Your Dietary Pattern", 
+            ["Vegetarian Diet", "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)"]
+        )
+    
+        # Food Items Based on Dietary Pattern
+        if dietary_pattern == "Vegetarian Diet":
+            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)"]
+        elif dietary_pattern == "Non-Vegetarian Diet (with Mutton)":
+            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", "Mutton"]
+        elif dietary_pattern == "Non-Vegetarian Diet (with Chicken)":
+            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", "Chicken"]
+
+        selected_food_items = st.multiselect("Food Items", food_items)
+        breakfast_selection = st.multiselect("Choose your Breakfast options", ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", "Paratha with Curd", "Upma", "Omelette with Toast", "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", "Sabudana Khichdi", "Dhokla", "Chole Bhature", "Besan Cheela", "Pongal"])
+        salad_selection = st.multiselect("Choose your Salads", ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", "Tomato Onion Salad", "Carrot and Cabbage Salad"])
+        sweets_selection = st.multiselect("Choose your Sweets", ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
+        banana_selection = "Single Banana"
         
-        conn = sqlite3.connect("data/emissions.db")
-        c = conn.cursor()
-        
-        # Fetch food categories
-        c.execute("SELECT DISTINCT category FROM food_items")
-        categories = [row[0] for row in c.fetchall()]
-        
-        user_choices = []
-        
-        for category in categories:
-            st.subheader(category)
-            c.execute("SELECT id, item FROM food_items WHERE category = ?", (category,))
-            food_items = c.fetchall()
-            selected_items = st.multiselect(f"Choose {category} items:", 
-                                            [item[1] for item in food_items], key=category)
-            user_choices.extend([(st.session_state.user_id, item[0]) for item in food_items if item[1] in selected_items])
+        user_choices = selected_food_items + breakfast_selection + salad_selection + sweets_selection + [banana_selection]
         
         if st.button("Save Food Preferences"):
-            c.executemany("INSERT INTO food_choices (user_id, food_item_id) VALUES (?, ?)", user_choices)
-            conn.commit()
-            conn.close()
-            st.success("✅ Food preferences saved!")
-    
-    # View Data Page
-    elif option == "View Data":
-        if not st.session_state.user_id:
-            st.warning("⚠️ Please Register/Login first.")
-        else:
-            st.header("📊 Your Submitted Data")
-            conn = sqlite3.connect('data/emissions.db')
-            c = conn.cursor()
-            c.execute("SELECT transport_mode, distance FROM transport_data WHERE user_id = ?", (st.session_state.user_id,))
-            transport_data = c.fetchall()
-            c.execute("SELECT food_choice FROM food_preferences WHERE user_id = ?", (st.session_state.user_id,))
-            food_data = c.fetchone()
-            conn.close()
-            if transport_data:
-                st.subheader("🚗 Transport Details")
-                for entry in transport_data:
-                    st.write(f"**Mode:** {entry[0]}, **Distance:** {entry[1]} km")
+            if user_choices:
+                store_food_data(st.session_state.session_id, dietary_pattern, user_choices)
+                st.success("✅ Food preferences saved!")
             else:
-                st.write("No transport data available.")
-            if food_data:
-                st.subheader("🍽 Food Preference")
-                st.write(f"**Preference:** {food_data[0]}")
-            else:
-                st.write("No food data available.")
-    
-    # Contact Us Page
-    elif option == "Contact Us":
-        st.header("📞 Contact Us")
-        name = st.text_input("Your Name")
-        message = st.text_area("Your Message")
-        if st.button("Send Message"):
-            st.success("Your message has been sent!")
+                st.warning("⚠️ Please select at least one food item.")
 
-    st.markdown("</div>", unsafe_allow_html=True) 
+    # View Submitted Data
+    elif option == "View Data":
+        st.header("📊 Your Submitted Data")
+        conn = sqlite3.connect('data/emissions.db')
+        c = conn.cursor()
+        
+        c.execute("SELECT transport_mode, distance FROM transport_data WHERE session_id = ?", (st.session_state.session_id,))
+        transport_data = c.fetchall()
+        c.execute("SELECT food_item FROM food_choices WHERE session_id = ?", (st.session_state.session_id,))
+        food_data = c.fetchall()
+        conn.close()
+
+        if transport_data:
+            st.subheader("🚗 Transport Details")
+            for entry in transport_data:
+                st.write(f"**Mode:** {entry[0]}, **Distance:** {entry[1]} km")
+        else:
+            st.write("No transport data available.")
+        
+        if food_data:
+            st.subheader("🍽 Food Preference")
+            for food in food_data:
+                st.write(f"**Preference:** {food[0]}")
+        else:
+            st.write("No food data available.")
+    elif option == "Contact Us":
+      st.header("📞 Contact Us")
+      name = st.text_input("Your Name")
+      message = st.text_area("Your Message")
+    
+      if st.button("Send Message"):
+        if name.strip() and message.strip():  # Ensure fields are not empty
+            store_message(name, message)  # Save message to the database
+            st.success("✅ Your message has been sent!")
+        else:
+            st.warning("⚠️ Please enter both your name and message.")
+
+
+# ✅ Ensure this closing div is OUTSIDE the if-elif block
+st.markdown("</div>", unsafe_allow_html=True)

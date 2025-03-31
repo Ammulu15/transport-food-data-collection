@@ -1,99 +1,62 @@
 import sqlite3
+import os
 
-# Initialize Database
+# Ensure the database directory exists
+os.makedirs("data", exist_ok=True)
+
 def init_db():
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    
-    # Users table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            email TEXT UNIQUE,
-            password TEXT
-        )
-    ''')
-    
-    # Transport data table (emissions column allows NULL values)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS transport_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            transport_mode TEXT,
-            distance REAL,
-            emissions REAL,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    
-    # Food choices table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS food_choices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            choice TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    """Initialize the database and create necessary tables if they don't exist."""
+    with sqlite3.connect("data/emissions.db") as conn:
+        c = conn.cursor()
 
-# Register User
-def register_user(name, email, password):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    try:
-        c.execute("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", (name, email, password))
+        
+
+        # Create the transport_data table with session_id
+        c.execute('''CREATE TABLE IF NOT EXISTS transport_data (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id TEXT NOT NULL,
+                        transport_mode TEXT NOT NULL,
+                        distance REAL NOT NULL)''')
+
+        # Create the food_choices table with session_id
+        c.execute('''CREATE TABLE IF NOT EXISTS food_choices (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id TEXT NOT NULL,
+                        dietary_pattern TEXT NOT NULL,
+                        food_item TEXT NOT NULL)''')
+
         conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False  # Email already exists
-    finally:
-        conn.close()
+        # Create contact messages table
+        c.execute('''CREATE TABLE IF NOT EXISTS contact_messages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        message TEXT NOT NULL,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
 
-# Authenticate User (Login)
-def authenticate_user(email, password):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE email = ? AND password = ?", (email, password))
-    user = c.fetchone()
-    conn.close()
-    return user[0] if user else None  # Return user ID if exists
+        conn.commit()
+def store_transport_data(session_id, transport_mode, distance):
+    """Store transport data for the user session."""
+    with sqlite3.connect('data/emissions.db') as conn:
+        c = conn.cursor()
+        # Insert transport data with session_id
+        c.execute('''INSERT INTO transport_data (session_id, transport_mode, distance) 
+                     VALUES (?, ?, ?)''', (session_id, transport_mode, distance))
+        conn.commit()  # Ensure data is committed
+        print(f"Inserted transport data: {session_id}, {transport_mode}, {distance}")  # Debug line
 
-# Get Logged-in User ID
-def get_logged_in_user_id(email):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE email = ?", (email,))
-    user = c.fetchone()
-    conn.close()
-    return user[0] if user else None
+def store_food_data(session_id, dietary_pattern, food_choices):
+    """Store food choices for the user session."""
+    with sqlite3.connect('data/emissions.db') as conn:
+        c = conn.cursor()
+        for food_item in food_choices:  # Insert each food item separately
+            c.execute('''INSERT INTO food_choices (session_id, dietary_pattern, food_item) 
+                         VALUES (?, ?, ?)''', (session_id, dietary_pattern, food_item))
+        conn.commit()
 
-# Update Password (Forgot Password)
-def update_password(email, new_password):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    c.execute("UPDATE users SET password = ? WHERE email = ?", (new_password, email))
-    conn.commit()
-    updated = c.rowcount > 0  # True if update was successful
-    conn.close()
-    return updated
-
-# Store Transport Data (emissions is optional and allowed to be NULL)
-def store_transport_data(user_id, transport_mode, distance, emissions=None):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO transport_data (user_id, transport_mode, distance, emissions) VALUES (?, ?, ?, ?)",
-              (user_id, transport_mode, distance, emissions))
-    conn.commit()
-    conn.close()
-
-# Store Food Choices
-def store_food_choice(user_id, choice):
-    conn = sqlite3.connect("data/emissions.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO food_choices (user_id, choice) VALUES (?, ?)", (user_id, choice))
-    conn.commit()
-    conn.close()
+        print(f"Inserted food choices: {food_choices} for session: {session_id}")  # Debug line
+def store_message(name, message):
+    """Save a user's contact message to the database."""
+    with sqlite3.connect("data/emissions.db") as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO contact_messages (name, message) VALUES (?, ?)", (name, message))
+        conn.commit()
