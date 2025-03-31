@@ -15,7 +15,7 @@ if 'reset_password' not in st.session_state:
     st.session_state.reset_password = False
 
 # Define the URL for your app (replace with your actual app URL)
-app_url = "http://localhost:8504/"
+app_url = "https://transport-food-data-collection-pzksckdswfrpqjusoctcx5.streamlit.app/"
 
 # Generate the QR code for your app URL
 qr = qrcode.make(app_url)
