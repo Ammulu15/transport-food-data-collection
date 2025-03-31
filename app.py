@@ -135,25 +135,33 @@ with st.container():
     
     # Food Preferences Data Collection Page
     elif option == "Food":
-        if not st.session_state.user_id:
-            st.warning("⚠️ Please Register/Login first.")
-        else:
-            st.header("🍽 Food Preferences")
-            food_choice = st.radio("Select Food Preference", ["Veg", "Non-Veg", "Vegan"])
-            conn = sqlite3.connect('data/emissions.db')
-            c = conn.cursor()
-            c.execute('''CREATE TABLE IF NOT EXISTS food_preferences (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER,
-                        food_choice TEXT,
-                        FOREIGN KEY(user_id) REFERENCES users(id))''')
+     if not st.session_state.user_id:
+        st.warning("⚠️ Please Register/Login first.")
+     else:
+        st.header("🍽 Select Your Food Preferences")
+        
+        conn = sqlite3.connect("data/emissions.db")
+        c = conn.cursor()
+        
+        # Fetch food categories
+        c.execute("SELECT DISTINCT category FROM food_items")
+        categories = [row[0] for row in c.fetchall()]
+        
+        user_choices = []
+        
+        for category in categories:
+            st.subheader(category)
+            c.execute("SELECT id, item FROM food_items WHERE category = ?", (category,))
+            food_items = c.fetchall()
+            selected_items = st.multiselect(f"Choose {category} items:", 
+                                            [item[1] for item in food_items], key=category)
+            user_choices.extend([(st.session_state.user_id, item[0]) for item in food_items if item[1] in selected_items])
+        
+        if st.button("Save Food Preferences"):
+            c.executemany("INSERT INTO food_choices (user_id, food_item_id) VALUES (?, ?)", user_choices)
             conn.commit()
-            if st.button("Save Preference"):
-                c.execute("INSERT INTO food_preferences (user_id, food_choice) VALUES (?, ?)", 
-                          (st.session_state.user_id, food_choice))
-                conn.commit()
-                conn.close()
-                st.success("✅ Food preference saved!")
+            conn.close()
+            st.success("✅ Food preferences saved!")
     
     # View Data Page
     elif option == "View Data":
@@ -188,4 +196,4 @@ with st.container():
         if st.button("Send Message"):
             st.success("Your message has been sent!")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True) 
