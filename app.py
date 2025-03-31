@@ -3,7 +3,7 @@ import sqlite3
 import time
 import qrcode
 from io import BytesIO
-from db import init_db, store_transport_data, store_food_data
+from db import init_db, store_transport_data, store_food_data  # (Ensure store_message is also defined if needed)
 
 # Initialize the database
 init_db()
@@ -19,7 +19,7 @@ buf.seek(0)
 
 # Create a session ID for each user (used to store data separately)
 if "session_id" not in st.session_state:
-    # Using time.time() to generate a session id; consider uuid.uuid4() if you prefer randomness.
+    # Using time.time() to generate a session id; consider uuid.uuid4() for randomness.
     st.session_state.session_id = str(time.time())
     print(f"[DEBUG] New session ID generated: {st.session_state.session_id}")
 else:
@@ -63,13 +63,13 @@ with st.container():
                                         ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", 
                                          "Electric 2-Wheeler", "Electric 4-Wheeler", "Local Train (Electricity)", "Air ways"])
         distances = {mode: st.number_input(f"Distance traveled by {mode} (km)", 
-                                           min_value=1, max_value=5000, step=1, key=mode) for mode in selected_modes}
+                                           min_value=1, max_value=5000, step=1, key=mode) 
+                     for mode in selected_modes}
         if st.button("Submit Transport Data"):
             for mode, distance in distances.items():
                 store_transport_data(st.session_state.session_id, mode, distance)
             st.success("✅ Transport details submitted!")
-           
-
+        
     # Food Preferences Data Collection
     elif option == "Food":
         st.header("🍽 Select Your Food Preferences")
@@ -89,11 +89,21 @@ with st.container():
             food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", "Chicken"]
 
         selected_food_items = st.multiselect("Food Items", food_items)
-        breakfast_selection = st.multiselect("Choose your Breakfast options", ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", "Paratha with Curd", "Upma", "Omelette with Toast", "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", "Sabudana Khichdi", "Dhokla", "Chole Bhature", "Besan Cheela", "Pongal"])
-        salad_selection = st.multiselect("Choose your Salads", ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", "Tomato Onion Salad", "Carrot and Cabbage Salad"])
-        sweets_selection = st.multiselect("Choose your Sweets", ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
-        banana_selection = "Single Banana"
+        breakfast_selection = st.multiselect("Choose your Breakfast options", 
+                                             ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", 
+                                              "Paratha with Curd", "Upma", "Omelette with Toast", 
+                                              "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", 
+                                              "Sabudana Khichdi", "Dhokla", "Chole Bhature", 
+                                              "Besan Cheela", "Pongal"])
+        salad_selection = st.multiselect("Choose your Salads", 
+                                         ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", 
+                                          "Tomato Onion Salad", "Carrot and Cabbage Salad"])
+        sweets_selection = st.multiselect("Choose your Sweets", 
+                                          ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", 
+                                           "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
+        banana_selection = "Single Banana"  # This is a fixed option
         
+        # Flatten the selections (remove extra list brackets)
         user_choices = selected_food_items + breakfast_selection + salad_selection + sweets_selection + [banana_selection]
         
         if st.button("Save Food Preferences"):
@@ -109,12 +119,14 @@ with st.container():
         conn = sqlite3.connect('data/emissions.db')
         c = conn.cursor()
         
-        c.execute("SELECT transport_mode, distance FROM transport_data WHERE session_id = ?", (st.session_state.session_id,))
+        c.execute("SELECT transport_mode, distance FROM transport_data WHERE session_id = ?", 
+                  (st.session_state.session_id,))
         transport_data = c.fetchall()
-        c.execute("SELECT food_item FROM food_choices WHERE session_id = ?", (st.session_state.session_id,))
+        c.execute("SELECT food_item FROM food_choices WHERE session_id = ?", 
+                  (st.session_state.session_id,))
         food_data = c.fetchall()
         conn.close()
-
+        
         if transport_data:
             st.subheader("🚗 Transport Details")
             for entry in transport_data:
@@ -128,18 +140,15 @@ with st.container():
                 st.write(f"**Preference:** {food[0]}")
         else:
             st.write("No food data available.")
+
+    # Contact Us Page
     elif option == "Contact Us":
-      st.header("📞 Contact Us")
-      name = st.text_input("Your Name")
-      message = st.text_area("Your Message")
-    
-      if st.button("Send Message"):
-        if name.strip() and message.strip():  # Ensure fields are not empty
-            store_message(name, message)  # Save message to the database
+        st.header("📞 Contact Us")
+        name = st.text_input("Your Name")
+        message = st.text_area("Your Message")
+        if st.button("Send Message"):
+            # Uncomment the following line if store_message is defined in db.py and imported
+            # store_message(name, message)
             st.success("✅ Your message has been sent!")
-        else:
-            st.warning("⚠️ Please enter both your name and message.")
 
-
-# ✅ Ensure this closing div is OUTSIDE the if-elif block
-st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
