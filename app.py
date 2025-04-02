@@ -69,49 +69,65 @@ with st.container():
             for mode, distance in distances.items():
                 store_transport_data(st.session_state.session_id, mode, distance)
             st.success("✅ Transport details submitted!")
-        
     # Food Preferences Data Collection
     elif option == "Food":
         st.header("🍽 Select Your Food Preferences")
-    
-        # Dietary Pattern Selection
-        dietary_pattern = st.radio(
-            "Select Your Dietary Pattern", 
-            ["Vegetarian Diet", "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)"]
-        )
-    
-        # Food Items Based on Dietary Pattern
-        if dietary_pattern == "Vegetarian Diet":
-            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)"]
-        elif dietary_pattern == "Non-Vegetarian Diet (with Mutton)":
-            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", "Mutton"]
-        elif dietary_pattern == "Non-Vegetarian Diet (with Chicken)":
-            food_items = ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", "Chicken"]
 
-        selected_food_items = st.multiselect("Food Items", food_items)
-        breakfast_selection = st.multiselect("Choose your Breakfast options", 
-                                             ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", 
-                                              "Paratha with Curd", "Upma", "Omelette with Toast", 
-                                              "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", 
-                                              "Sabudana Khichdi", "Dhokla", "Chole Bhature", 
-                                              "Besan Cheela", "Pongal"])
+        # Dietary Pattern Selection
+        dietary_pattern = st.radio("Select Your Dietary Pattern", 
+        ["Vegetarian Diet", "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)"])
+
+        # Breakfast Selection
+        breakfast = st.multiselect("Choose your Breakfast options", 
+                               ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", 
+                                "Paratha with Curd", "Upma", "Omelette with Toast", 
+                                "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", 
+                                "Sabudana Khichdi", "Dhokla", "Chole Bhature", 
+                                "Besan Cheela", "Pongal"])
+
+        # Lunch Selection
+        lunch = st.multiselect("Choose your Lunch options", 
+                           ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", 
+                            "Dal Tadka", "Paneer Butter Masala", "Mutton Curry", "Chicken Curry", "Fish Fry", 
+                            "Sambhar", "Curd Rice", "Mixed Vegetable Curry"])
+
+        # Dinner Selection
+        dinner = st.multiselect("Choose your Dinner options", 
+                            ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", 
+                             "Khichdi", "Daal Rice", "Grilled Fish", "Grilled Chicken", "Tofu Stir Fry", 
+                             "Egg Bhurji", "Soup", "Salad"])
+
+        # Salads and Sweets remain unchanged
         salad_selection = st.multiselect("Choose your Salads", 
-                                         ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", 
-                                          "Tomato Onion Salad", "Carrot and Cabbage Salad"])
+                                     ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", 
+                                      "Tomato Onion Salad", "Carrot and Cabbage Salad"])
+
         sweets_selection = st.multiselect("Choose your Sweets", 
-                                          ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", 
-                                           "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
-        banana_selection = "Single Banana"  # This is a fixed option
-        
-        # Flatten the selections (remove extra list brackets)
-        user_choices = selected_food_items + breakfast_selection + salad_selection + sweets_selection + [banana_selection]
-        
+                                      ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", 
+                                       "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
+
+        banana_selection = ["Single Banana"]  # This is a fixed option
+    
+        # Combine all meal selections
+        user_choices = {
+        "Breakfast": breakfast,
+        "Lunch": lunch,
+        "Dinner": dinner,
+        "Salads": salad_selection,
+        "Sweets": sweets_selection,
+        "Others": banana_selection}
+
+        # Save to database
         if st.button("Save Food Preferences"):
-            if user_choices:
-                store_food_data(st.session_state.session_id, dietary_pattern, user_choices)
+            if any(user_choices.values()):  # Check if user made at least one selection
+                for meal_type, items in user_choices.items():
+                    if items:
+                        store_food_data(st.session_state.session_id, f"{dietary_pattern} - {meal_type}", items)
                 st.success("✅ Food preferences saved!")
             else:
-                st.warning("⚠️ Please select at least one food item.")
+                st.warning("⚠️ Please select at least one food option.")
+    
+
 
     # View Submitted Data
     elif option == "View Data":
