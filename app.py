@@ -75,7 +75,7 @@ with st.container():
 
         # Dietary Pattern Selection
         dietary_pattern = st.radio("Select Your Dietary Pattern", 
-        ["Vegetarian Diet", "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)"])
+        ["Vegetarian Diet",'Vegan Diet','Non-Vegetarian Diet (with Fish)','Non Vegetarian Diet (with Eggs)', "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)",])
 
         # Breakfast Selection
         breakfast = st.multiselect("Choose your Breakfast options", 
