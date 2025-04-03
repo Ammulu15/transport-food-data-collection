@@ -3,27 +3,23 @@ import sqlite3
 import time
 import qrcode
 from io import BytesIO
-from db import init_db, store_transport_data, store_food_data  # (Ensure store_message is also defined if needed)
+from db import init_db, store_transport_data, store_food_data
 
 # Initialize the database
 init_db()
 
-# Define the URL for your app (replace with your actual app URL)
+# Define the URL for your app
 app_url = "https://transport-food-data-collection-pzksckdswfrpqjusoctcx5.streamlit.app/"
 
-# Generate the QR code for your app URL
+# Generate QR code
 qr = qrcode.make(app_url)
 buf = BytesIO()
 qr.save(buf, format="PNG")
 buf.seek(0)
 
-# Create a session ID for each user (used to store data separately)
+# Session management
 if "session_id" not in st.session_state:
-    # Using time.time() to generate a session id; consider uuid.uuid4() for randomness.
     st.session_state.session_id = str(time.time())
-    print(f"[DEBUG] New session ID generated: {st.session_state.session_id}")
-else:
-    print(f"[DEBUG] Using existing session ID: {st.session_state.session_id}")
 
 # Sidebar Navigation
 with st.sidebar:
@@ -31,140 +27,153 @@ with st.sidebar:
     st.title("🚀 Menu")
     option = st.radio("Go to", ["Home", "Scan QR", "Transport", "Food", "View Data", "Contact Us"])
 
-# Main Container for Display
+# Main Container
 with st.container():
     st.markdown("<div style='max-width: 360px; margin: auto;'>", unsafe_allow_html=True)
     
-    # Home Page
     if option == "Home":
         st.header("🌍 Welcome to the Event Emissions Data Collector!")
-        st.write(
-            "We developed a dashboard using Streamlit that displays **Scope 1, 2, and 3 emissions** for an event. "
-            "This web application allows event attendees to submit transportation and food data."
-        )
+        st.write("Track your carbon footprint from transportation and food choices.")
         st.subheader("📌 What You Can Do Here:")
         st.markdown(""" 
-        - ✅ **Enter Transportation Details** – Specify your mode of travel and distance traveled.
-        - ✅ **Choose Your Food Preference** – Select from Veg, Non-Veg, or Vegan options.
+        - ✅ Enter Transportation Details
+        - ✅ Choose Your Food Preference
+        - ✅ View Your Carbon Impact
         """)
-        st.write("Use the sidebar to navigate.")
 
-    # QR Code Page
     elif option == "Scan QR":
         st.header("📱 Scan this QR Code")
-        st.write("Scan this QR code to open the app on your mobile device.")
         st.image(buf, caption="Scan me!", use_column_width=True)
 
-    # Transport Data Collection
     elif option == "Transport":
         st.header("🚗 Transport Details")
-        st.write("Select the transport modes you used and provide the distance traveled.")
-        selected_modes = st.multiselect("Select Transport Modes", 
-                                        ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", 
-                                         "Electric 2-Wheeler", "Electric 4-Wheeler", "Local Train (Electricity)", "Air ways"])
-        distances = {mode: st.number_input(f"Distance traveled by {mode} (km)", 
-                                           min_value=1, max_value=5000, step=1, key=mode) 
-                     for mode in selected_modes}
+        selected_modes = st.multiselect(
+            "Select Transport Modes", 
+            ["3-Wheeler CNG", "2-Wheeler", "4W Petrol", "4W CNG", "BUS", 
+             "Electric 2-Wheeler", "Electric 4-Wheeler", "Local Train (Electricity)", "Air ways"]
+        )
+        distances = {
+            mode: st.number_input(
+                f"Distance traveled by {mode} (km)", 
+                min_value=1, max_value=5000, step=1, key=mode
+            ) for mode in selected_modes
+        }
         if st.button("Submit Transport Data"):
             for mode, distance in distances.items():
                 store_transport_data(st.session_state.session_id, mode, distance)
             st.success("✅ Transport details submitted!")
-    # Food Preferences Data Collection
+
     elif option == "Food":
         st.header("🍽 Select Your Food Preferences")
-
+        
         # Dietary Pattern Selection
-        dietary_pattern = st.radio("Select Your Dietary Pattern", 
-        ["Vegetarian Diet",'Vegan Diet','Non-Vegetarian Diet (with Fish)','Non Vegetarian Diet (with Eggs)', "Non-Vegetarian Diet (with Mutton)", "Non-Vegetarian Diet (with Chicken)",])
-
-        # Breakfast Selection
-        breakfast = st.multiselect("Choose your Breakfast options", 
-                               ["Milk", "Eggs", "Idli with Sambar", "Poha with Vegetables", 
-                                "Paratha with Curd", "Upma", "Omelette with Toast", 
-                                "Masala Dosa", "Puri Bhaji", "Aloo Paratha", "Medu Vada", 
-                                "Sabudana Khichdi", "Dhokla", "Chole Bhature", 
-                                "Besan Cheela", "Pongal"])
-
-        # Lunch Selection
-        lunch = st.multiselect("Choose your Lunch options", 
-                           ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", 
-                            "Dal Tadka", "Paneer Butter Masala", "Mutton Curry", "Chicken Curry", "Fish Fry", 
-                            "Sambhar", "Curd Rice", "Mixed Vegetable Curry"])
-
-        # Dinner Selection
-        dinner = st.multiselect("Choose your Dinner options", 
-                            ["Chapatti (Wheat Bread)", "Rice", "Pulses (Lentils)", "Vegetables (Cauliflower, Brinjal)", 
-                             "Khichdi", "Daal Rice", "Grilled Fish", "Grilled Chicken", "Tofu Stir Fry", 
-                             "Egg Bhurji", "Soup", "Salad"])
-
-        # Salads and Sweets remain unchanged
-        salad_selection = st.multiselect("Choose your Salads", 
-                                     ["Kachumber Salad", "Sprouted Moong Salad", "Cucumber Raita Salad", 
-                                      "Tomato Onion Salad", "Carrot and Cabbage Salad"])
-
-        sweets_selection = st.multiselect("Choose your Sweets", 
-                                      ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Kaju Katli", 
-                                       "Barfi", "Halwa (Carrot or Bottle Gourd)", "Laddu"])
-
-        banana_selection = ["Single Banana"]  # This is a fixed option
-    
-        # Combine all meal selections
-        user_choices = {
-        "Breakfast": breakfast,
-        "Lunch": lunch,
-        "Dinner": dinner,
-        "Salads": salad_selection,
-        "Sweets": sweets_selection,
-        "Others": banana_selection}
-
-        # Save to database
+        dietary_pattern = st.radio(
+            "Select Your Dietary Pattern", 
+            ["Vegetarian Diet", "Vegan Diet", "Non-Vegetarian Diet (with Fish)", 
+             "Non-Vegetarian Diet (with Eggs)", "Non-Vegetarian Diet (with Mutton)", 
+             "Non-Vegetarian Diet (with Chicken)"]
+        )
+        
+        # Number of meals slider
+        num_meals = st.slider("Number of meals consumed", 1, 5, 2)
+        
+        # Food selection based on diet
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Main Course")
+            if "Vegetarian" in dietary_pattern:
+                main_options = ["Chapatti", "Rice", "Pulses", "Vegetable Curry", "Paneer Dish"]
+            elif "Vegan" in dietary_pattern:
+                main_options = ["Chapatti", "Rice", "Pulses", "Vegetable Curry", "Tofu Dish"]
+            elif "Fish" in dietary_pattern:
+                main_options = ["Chapatti", "Rice", "Pulses", "Grilled Fish", "Vegetable Curry"]
+            elif "Eggs" in dietary_pattern:
+                main_options = ["Chapatti", "Rice", "Pulses", "Egg Curry", "Vegetable Curry"]
+            else:  # Chicken/Mutton
+                main_options = ["Chapatti", "Rice", "Pulses", "Chicken Curry", "Vegetable Curry"]
+            
+            main_course = st.multiselect("Select main course items", main_options)
+        
+        with col2:
+            st.subheader("Extras")
+            extras = st.multiselect("Select additional items", 
+                                  ["Salad", "Soup", "Yogurt", "Pickle", "Papad"])
+        
+        st.subheader("Sweets")
+        sweets = st.multiselect("Select desserts", 
+                              ["Gulab Jamun", "Rasgulla", "Kheer", "Jalebi", "Fruit"])
+        
+        # Combine selections
+        all_selections = {
+            "Dietary Pattern": dietary_pattern,
+            "Number of Meals": num_meals,
+            "Main Course": main_course,
+            "Extras": extras,
+            "Sweets": sweets
+        }
+        
         if st.button("Save Food Preferences"):
-            if any(user_choices.values()):  # Check if user made at least one selection
-                for meal_type, items in user_choices.items():
-                    if items:
-                        store_food_data(st.session_state.session_id, f"{dietary_pattern} - {meal_type}", items)
+            if main_course or extras or sweets:  # At least one selection
+                for category, items in all_selections.items():
+                    if items and category != "Number of Meals":
+                        store_food_data(
+                            st.session_state.session_id, 
+                            f"{dietary_pattern} - {category}", 
+                            items if isinstance(items, list) else [items]
+                        )
+                # Store number of meals separately
+                store_food_data(
+                    st.session_state.session_id,
+                    "Meal Information",
+                    [f"Number of meals: {num_meals}"]
+                )
                 st.success("✅ Food preferences saved!")
             else:
-                st.warning("⚠️ Please select at least one food option.")
-    
+                st.warning("⚠️ Please select at least one food item.")
 
-
-    # View Submitted Data
     elif option == "View Data":
         st.header("📊 Your Submitted Data")
         conn = sqlite3.connect('data/emissions.db')
         c = conn.cursor()
         
+        # Transport data
         c.execute("SELECT transport_mode, distance FROM transport_data WHERE session_id = ?", 
-                  (st.session_state.session_id,))
+                 (st.session_state.session_id,))
         transport_data = c.fetchall()
+        
+        # Food data
         c.execute("SELECT food_item FROM food_choices WHERE session_id = ?", 
-                  (st.session_state.session_id,))
+                 (st.session_state.session_id,))
         food_data = c.fetchall()
+        
         conn.close()
         
         if transport_data:
             st.subheader("🚗 Transport Details")
-            for entry in transport_data:
-                st.write(f"**Mode:** {entry[0]}, **Distance:** {entry[1]} km")
-        else:
-            st.write("No transport data available.")
+            for mode, distance in transport_data:
+                st.write(f"- {mode}: {distance} km")
         
         if food_data:
-            st.subheader("🍽 Food Preference")
-            for food in food_data:
-                st.write(f"**Preference:** {food[0]}")
-        else:
-            st.write("No food data available.")
+            st.subheader("🍽 Food Preferences")
+            current_category = ""
+            for item in food_data:
+                item = item[0]
+                if " - " in item:
+                    category = item.split(" - ")[1]
+                    if category != current_category:
+                        st.write(f"**{category}**")
+                        current_category = category
+                    st.write(f"- {item.split(' - ')[-1]}")
+                else:
+                    st.write(item)
 
-    # Contact Us Page
     elif option == "Contact Us":
         st.header("📞 Contact Us")
-        name = st.text_input("Your Name")
-        message = st.text_area("Your Message")
-        if st.button("Send Message"):
-            # Uncomment the following line if store_message is defined in db.py and imported
-            # store_message(name, message)
-            st.success("✅ Your message has been sent!")
+        with st.form("contact_form"):
+            name = st.text_input("Your Name")
+            message = st.text_area("Your Message")
+            if st.form_submit_button("Send Message"):
+                st.success("✅ Your message has been sent!")
 
     st.markdown("</div>", unsafe_allow_html=True)

@@ -26,7 +26,8 @@ def init_db():
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         session_id TEXT NOT NULL,
                         dietary_pattern TEXT NOT NULL,
-                        food_item TEXT NOT NULL)''')
+                        food_item TEXT NOT NULL,
+                        number_of_meals INTEGER DEFAULT 1)''')
 
         # Create contact_messages table
         c.execute('''CREATE TABLE IF NOT EXISTS contact_messages (
